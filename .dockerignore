@@ -1,0 +1,91 @@
+# ============================================
+# 1. VERSION CONTROL (Don't send .git into Docker)
+# ============================================
+.git/
+.gitignore
+.gitattributes
+
+# ============================================
+# 2. PYTHON CACHE & BUILD ARTIFACTS
+# ============================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+
+# ============================================
+# 3. ENVIRONMENT & SECRETS (CRITICAL!)
+# ============================================
+.env
+.env.*
+*.env
+*.pem
+*.key
+*.crt
+secrets.yaml
+credentials.json
+
+# ============================================
+# 4. LOCAL DATA & UPLOADS (Don't copy local PDFs)
+# ============================================
+/uploads/
+/uploads/*.pdf
+/data/
+/tmp/
+*.db
+*.sqlite
+*.sqlite3
+
+# ============================================
+# 5. LOGS & TEMPORARY FILES
+# ============================================
+*.log
+logs/
+*.tmp
+*.temp
+/tmp/
+
+# ============================================
+# 6. DOCKER & CONTAINER FILES (Don't nest Docker)
+# ============================================
+docker-compose*.yml
+Dockerfile
+.dockerignore
+*.dockerfile
+
+# ============================================
+# 7. IDE & OS FILES
+# ============================================
+.vscode/
+.idea/
+*.iml
+.DS_Store
+Thumbs.db
+
+# ============================================
+# 8. TESTING & COVERAGE
+# ============================================
+.pytest_cache/
+.coverage
+htmlcov/
+*.cover
+test-reports/
+
+# ============================================
+# 9. JUPYTER NOTEBOOKS
+# ============================================
+*.ipynb
+.ipynb_checkpoints/
+
+# ============================================
+# 10. DOCUMENTATION & MISC
+# ============================================
+README.md
+docs/
+*.md
+LICENSE
