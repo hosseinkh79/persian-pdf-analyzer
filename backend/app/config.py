@@ -1,8 +1,6 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pathlib import Path
 
-BASE_DIR = Path(__file__).resolve().parent.parent.parent
-ENV_FILE_PATH = BASE_DIR / ".env"
 
 class Settings(BaseSettings):
     # App Settings
@@ -24,10 +22,10 @@ class Settings(BaseSettings):
             f"@{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
         )
 
-    # Read .env file automatically if present locally
-    model_config = SettingsConfigDict(env_file=ENV_FILE_PATH,
-                                      extra="ignore",
-                                      env_file_encoding="utf-8")
+    # # Read .env file automatically if present locally
+    # model_config = SettingsConfigDict(env_file=ENV_FILE_PATH,
+    #                                   extra="ignore",
+    #                                   env_file_encoding="utf-8")
 
 
 
