@@ -4,3 +4,8 @@ uvicorn
 psycopg2-binary
 python-dotenv
 pydantic-settings
+python-multipart
+
+pdfplumber
+PyPDF2
+openai
