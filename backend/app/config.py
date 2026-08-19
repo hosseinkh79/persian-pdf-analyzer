@@ -3,7 +3,7 @@ from pathlib import Path
 
 
 class Settings(BaseSettings):
-    # App Settings
+    
     PROJECT_NAME: str = "PDF Analyzer API"
     DEBUG: bool = False
 
