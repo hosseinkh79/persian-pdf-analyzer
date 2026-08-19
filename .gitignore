@@ -14,8 +14,11 @@ test*.py
 
 
 # upload folders
+backend/uploads/*
 /uploads/
 /uploads/*
+*.pdf
+*.PDF
 
 ### dotenv ###
 .env

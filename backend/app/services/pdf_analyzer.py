@@ -7,7 +7,7 @@ OpenRouter gives access to multiple LLM models through one API.
 import os
 import json
 import re
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional
 from datetime import datetime
 import logging
 
@@ -31,7 +31,6 @@ except ImportError:
     OpenAI = None
 
 from app import crud, models
-from app.config import settings
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -113,15 +112,6 @@ class PDFExtractor:
 class OpenRouterService:
     """
     Service for calling LLM APIs via OpenRouter.
-    
-    OpenRouter provides access to many models:
-    - nvidia/nemotron-3.5-lightning:free
-    - openai/gpt-4
-    - anthropic/claude-3
-    - meta-llama/llama-3
-    - google/gemini-pro
-    - mistralai/mistral-7b
-    and many more!
     """
     
     def __init__(self):
@@ -130,11 +120,11 @@ class OpenRouterService:
         self._initialize_client()
     
     def _initialize_client(self):
-        """Initialize the OpenRouter client."""
-        api_key = os.getenv("LLM_API_KEY")
+        """Initialize the OpenRouter client checking both env var keys."""
+        api_key = os.getenv("OPEN_ROUTER_API_KEY") or os.getenv("LLM_API_KEY")
         
         if not api_key:
-            logger.warning("OPEN_ROUTER_API_KEY not set. Using mock mode.")
+            logger.warning("OPEN_ROUTER_API_KEY / LLM_API_KEY not set. Using mock mode.")
             self.client = None
             return
         
@@ -164,221 +154,157 @@ class OpenRouterService:
         model: str = None,
         max_tokens: int = 1000
     ) -> Dict[str, Any]:
-        """
-        Send PDF content to OpenRouter for analysis.
-        
-        Args:
-            text_content: Extracted text from PDF
-            metadata: PDF metadata
-            model: Specific model to use (e.g., "openai/gpt-4")
-            max_tokens: Maximum tokens in response
-            
-        Returns:
-            Structured data extracted from PDF
-        """
-        # Use default model if none specified
+        """Send PDF content to OpenRouter for analysis."""
         model = model or self.default_model
         
-        # Prepare the prompt
-        prompt = self._prepare_prompt(text_content, metadata)
-        
-        # Call OpenRouter
         if self.client:
-            return self._call_openrouter(prompt, model, max_tokens)
+            return self._call_openrouter(text_content, metadata, model, max_tokens)
         else:
-            # Mock mode for development
             return self._mock_analysis(text_content, metadata)
-    
-    def _prepare_prompt(self, text_content: str, metadata: Dict[str, Any] = None) -> str:
-        """Prepare the prompt for the LLM."""
         
-        # Truncate text if too long
-        max_chars = 15000  # ~5000 tokens
-        if len(text_content) > max_chars:
-            text_content = text_content[:max_chars] + "...\n[Content truncated due to length]"
-        
-        # System prompt
-        system_prompt = """You are an expert document analyzer. Extract structured information from the provided PDF content.
-
-Extract the following information:
-1. Title - The main title of the document
-2. Author - The author(s) of the document
-3. Date - The date mentioned in the document (format: YYYY-MM-DD)
-4. Summary - A concise summary of the document (2-3 sentences)
-5. Keywords - 5-10 key topics or concepts from the document
-6. Type - Document type (invoice, report, article, letter, contract, etc.)
-7. Key Points - 3-5 main points from the document
-8. Entities - Any important entities mentioned (names, organizations, locations)
-
-Return ONLY valid JSON in this exact format (no other text):
-{
-    "title": "Document title or 'Unknown'",
-    "author": "Author name or 'Unknown'",
-    "date": "YYYY-MM-DD or 'Unknown'",
-    "summary": "Brief summary of the document",
-    "keywords": ["keyword1", "keyword2", "keyword3"],
-    "type": "document type",
-    "key_points": ["point1", "point2", "point3"],
-    "entities": {
-        "people": ["name1", "name2"],
-        "organizations": ["org1", "org2"],
-        "locations": ["location1", "location2"]
-    }
-}
-
-Be thorough but concise. If information is not available, use "Unknown" or empty lists."""
-        
-        # User prompt with actual content
-        user_prompt = f"""
-PDF Information:
-- Pages: {metadata.get('pages', 'Unknown') if metadata else 'Unknown'}
-
-PDF Content:
-{text_content}
-
-Extract the structured information from this PDF and return ONLY valid JSON.
-"""
-        
-        return system_prompt + "\n\n" + user_prompt
-    
-    def _call_openrouter(self, prompt: str, model: str, max_tokens: int) -> Dict[str, Any]:
-        """Call OpenRouter API."""
-        
-        try:
-            # Extract just the JSON part from the prompt
-            # The prompt already has the system and user messages combined
-            # We need to split them for the API call
+    def _call_openrouter(
+            self,
+            text_content: str,
+            metadata: Dict[str, Any],
+            model: str,
+            max_tokens: int
+        ) -> Dict[str, Any]:
+            """Call OpenRouter API with explicit task instructions."""
             
-            # Find where the user content starts
-            parts = prompt.split("PDF Content:")
-            if len(parts) > 1:
-                system_part = parts[0]
-                user_content = parts[1]
-            else:
-                system_part = "You are a helpful document analyst. Extract structured information from PDFs."
-                user_content = prompt
-            
-            # Prepare messages for OpenRouter
-            messages = [
-                {
-                    "role": "system",
-                    "content": system_part.strip()
-                },
-                {
-                    "role": "user",
-                    "content": f"""Extract structured information from this PDF:
-
-{user_content.strip()}
-
-Return ONLY valid JSON with the following structure:
-{{
-    "title": "...",
-    "author": "...",
-    "date": "...",
-    "summary": "...",
-    "keywords": [...],
-    "type": "...",
-    "key_points": [...],
-    "entities": {{
-        "people": [...],
-        "organizations": [...],
-        "locations": [...]
-    }}
-}}"""
-                }
-            ]
-            
-            # Make the API call
-            response = self.client.chat.completions.create(
-                model=model,
-                messages=messages,
-                max_tokens=max_tokens,
-                temperature=0.3,  # Lower for consistent results
-                top_p=0.9,
-                extra_headers={
-                    "X-Title": os.getenv("OPENROUTER_TITLE", "PDF Analyzer")
-                }
+            max_chars = 15000
+            if len(text_content) > max_chars:
+                text_content = text_content[:max_chars] + "...\n[Truncated]"
+                
+            system_prompt = (
+                "You are a strict data extraction system. Analyze the provided document text and output a JSON object.\n"
+                "DO NOT repeat template instructions or placeholders.\n"
+                "DO NOT include markdown, commentary, or thinking tags.\n"
+                "Output ONLY raw valid JSON."
             )
             
-            # Extract and parse the response
-            content = response.choices[0].message.content
-            logger.info(f"OpenRouter response received ({len(content)} chars)")
-            
-            return self._parse_response(content)
-            
-        except Exception as e:
-            logger.error(f"OpenRouter API error: {e}")
-            return {
-                "error": str(e),
-                "title": "Error",
-                "summary": f"Analysis failed: {str(e)}",
-                "keywords": ["error"],
-                "type": "error"
-            }
+            user_prompt = f"""Read the following PDF text and extract the actual facts into JSON.
+
+    PDF TEXT CONTENT:
+    {text_content}
+
+    CRITICAL: Extract actual values from the text above. If a field is missing, use "Unknown" or an empty list [].
+
+    REQUIRED JSON SCHEMA:
+    {{
+        "title": "Actual title extracted from document",
+        "author": "Actual author extracted from document",
+        "extracted_date": "Actual date in YYYY-MM-DD or Unknown",
+        "summary": "Actual 2-3 sentence summary of the document content",
+        "keywords": ["actual_keyword_1", "actual_keyword_2"],
+        "type": "invoice, report, article, letter, paper, or document",
+        "key_points": ["actual_point_1", "actual_point_2"],
+        "entities": {{
+            "people": [],
+            "organizations": [],
+            "locations": []
+        }}
+    }}
+    """
+            try:
+                response = self.client.chat.completions.create(
+                    model=model,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt}
+                    ],
+                    max_tokens=max_tokens,
+                    temperature=0.1
+                )
+                content = response.choices[0].message.content
+                logger.info(f"OpenRouter response received ({len(content)} chars)")
+                return self._parse_response(content)
+                
+            except Exception as e:
+                logger.error(f"OpenRouter API error: {e}")
+                return {
+                    "title": "Error",
+                    "summary": f"Analysis failed: {str(e)}",
+                    "keywords": ["error"],
+                    "type": "error",
+                    "extracted_date": datetime.now().strftime("%Y-%m-%d")
+                }
     
     def _parse_response(self, content: str) -> Dict[str, Any]:
-        """Parse and validate the LLM response."""
-        try:
-            # Try to parse as JSON directly
-            data = json.loads(content)
-            return data
-        except json.JSONDecodeError:
-            # Try to extract JSON from text
+        """Parse LLM output, aggressively stripping chain-of-thought blocks."""
+        if not content:
+            return self._fallback_parse("Empty response received from LLM.")
+
+        # 1. Strip out chain-of-thought / reasoning processes
+        content = re.sub(r'<think>.*?</think>', '', content, flags=re.DOTALL)
+        content = re.sub(r"Here's a thinking process:.*?(?=\{)", '', content, flags=re.DOTALL)
+        content = re.sub(r"Thinking Process:.*?(?=\{)", '', content, flags=re.DOTALL)
+
+        # 2. Extract JSON from markdown code fences (```json ... ```)
+        json_block_match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', content, re.DOTALL)
+        if json_block_match:
             try:
-                # Find JSON-like content between curly braces
-                json_match = re.search(r'\{[^{}]*\}', content, re.DOTALL)
-                if json_match:
-                    # Try to find complete JSON with nested objects
-                    # Use a more robust regex for nested JSON
-                    json_match = re.search(r'\{.*\}', content, re.DOTALL)
-                    if json_match:
-                        data = json.loads(json_match.group())
-                        return data
-            except:
+                return json.loads(json_block_match.group(1).strip())
+            except json.JSONDecodeError:
                 pass
-            
-            # If all fails, try to extract information manually
-            return {
-                "title": "Unknown",
-                "author": "Unknown",
-                "date": "Unknown",
-                "summary": content[:500] if content else "No content extracted",
-                "keywords": [],
-                "type": "unknown",
-                "key_points": [],
-                "entities": {
-                    "people": [],
-                    "organizations": [],
-                    "locations": []
-                },
-                "raw_response": content[:1000]  # Truncate
-            }
+
+        # 3. Direct JSON attempt
+        try:
+            return json.loads(content.strip())
+        except json.JSONDecodeError:
+            pass
+
+        # 4. Regex fallback matching outermost brackets
+        json_match = re.search(r'\{.*\}', content, re.DOTALL)
+        if json_match:
+            try:
+                return json.loads(json_match.group().strip())
+            except json.JSONDecodeError:
+                pass
+
+        return self._fallback_parse(content)
+
+    def _fallback_parse(self, content: str) -> Dict[str, Any]:
+        """Graceful degradation structure when JSON parsing completely fails."""
+        return {
+            "title": "Unknown",
+            "author": "Unknown",
+            "extracted_date": datetime.now().strftime("%Y-%m-%d"),
+            "summary": content[:500] if content else "No structured content extracted.",
+            "keywords": [],
+            "type": "unknown",
+            "key_points": [],
+            "entities": {
+                "people": [],
+                "organizations": [],
+                "locations": []
+            },
+            "raw_response": content[:1000]
+        }
     
     def _mock_analysis(self, text_content: str, metadata: Dict[str, Any] = None) -> Dict[str, Any]:
-        """Mock analysis for development (no API key)."""
+        """Mock analysis for development (no API key configured)."""
         logger.info("Using mock analysis (OpenRouter API key not configured)")
-        
-        lines = text_content.split('\n')
-        first_line = lines[0] if lines else ""
+        lines = [line.strip() for line in text_content.split('\n') if line.strip()]
+        first_line = lines[0] if lines else "Untitled Document"
         
         return {
-            "title": first_line[:100] or "Untitled Document",
+            "title": first_line[:100],
             "author": "Mock Analyzer",
-            "date": datetime.now().strftime("%Y-%m-%d"),
-            "summary": f"Mock analysis (OpenRouter not configured). First 200 chars: {text_content[:200]}...",
-            "keywords": ["mock", "openrouter", "demo", "pdf"],
+            "extracted_date": datetime.now().strftime("%Y-%m-%d"),
+            "summary": f"Mock analysis active (API key missing). First 200 chars: {text_content[:200]}...",
+            "keywords": ["mock", "demo", "pdf"],
             "type": "document",
             "key_points": [
                 "Mock analysis - No API key configured",
-                "Set OPEN_ROUTER_API_KEY in .env",
-                "Visit https://openrouter.ai to get a key"
+                "Set OPEN_ROUTER_API_KEY in environment variables",
+                "Visit https://openrouter.ai to acquire a valid key"
             ],
             "entities": {
                 "people": [],
                 "organizations": [],
                 "locations": []
             },
-            "pages": metadata.get('pages', 'Unknown') if metadata else 'Unknown'
+            "pages": metadata.get('pages', 0) if metadata else 0
         }
 
 
@@ -387,14 +313,7 @@ Return ONLY valid JSON with the following structure:
 # ============================================================
 
 class AnalysisService:
-    """
-    Main service for analyzing PDF documents.
-    
-    Orchestrates:
-    1. PDF extraction
-    2. LLM analysis via OpenRouter
-    3. Result storage
-    """
+    """Main service for orchestrating PDF document analysis."""
     
     def __init__(self):
         self.extractor = PDFExtractor()
@@ -407,52 +326,32 @@ class AnalysisService:
         document_id: str,
         model: Optional[str] = None
     ) -> Dict[str, Any]:
-        """
-        Analyze a PDF document.
-        
-        Args:
-            db: Database session
-            document_id: ID of the document to analyze
-            model: Specific LLM model to use (e.g., "openai/gpt-4")
-            
-        Returns:
-            Analysis results
-        """
-        # Get document from database
+        """Analyze a PDF document and update database states."""
         document = crud.get_document(db, document_id)
         if not document:
             raise ValueError(f"Document not found: {document_id}")
         
         self.logger.info(f"Analyzing document: {document.filename} (ID: {document_id})")
-        
-        # Update status to processing
         crud.update_document_status(db, document_id, models.DocumentStatus.PROCESSING)
         
         try:
-            # Extract PDF text
             self.logger.info(f"Extracting text from PDF: {document.file_path}")
             text_content = self.extractor.extract_text(document.file_path)
             
             if not text_content or len(text_content.strip()) < 10:
-                raise ValueError("No text could be extracted from PDF (file might be scanned or empty)")
+                raise ValueError("No text extracted from PDF (file may be empty or image-only scanned PDF)")
             
-            # Get PDF metadata
             metadata = self.extractor.get_metadata(document.file_path)
             
-            self.logger.info(f"Extracted {len(text_content)} characters, {metadata.get('pages', 0)} pages")
-            
-            # Analyze with LLM
-            self.logger.info(f"Calling OpenRouter with model: {model or self.llm.default_model}")
+            self.logger.info(f"Calling LLM with model: {model or self.llm.default_model}")
             extracted_data = self.llm.analyze_pdf(
                 text_content=text_content,
                 metadata=metadata,
                 model=model
             )
             
-            # Store raw response for debugging
             raw_response = json.dumps(extracted_data, indent=2)
             
-            # Save results to database
             self.logger.info("Saving analysis results to database")
             crud.save_analysis_result(
                 db=db,
@@ -461,20 +360,17 @@ class AnalysisService:
                 raw_response=raw_response
             )
             
-            # Get updated document
-            document = crud.get_document(db, document_id)
-            
-            self.logger.info(f"Analysis complete for document: {document.filename}")
+            crud.update_document_status(db, document_id, models.DocumentStatus.DONE)
+            updated_document = crud.get_document(db, document_id)
             
             return {
-                "id": document.id,
-                "filename": document.filename,
-                "status": document.status,
-                "extracted_data": document.extracted_data
+                "id": updated_document.id,
+                "filename": updated_document.filename,
+                "status": updated_document.status,
+                "extracted_data": updated_document.extracted_data
             }
             
         except Exception as e:
-            # Update status to error
             error_msg = str(e)
             self.logger.error(f"Analysis failed: {error_msg}")
             crud.update_document_status(
@@ -486,9 +382,5 @@ class AnalysisService:
             raise
 
 
-# ============================================================
-# 4. SINGLETON INSTANCE
-# ============================================================
-
-# Create a single instance of the analysis service
+# Singleton instance
 analysis_service = AnalysisService()

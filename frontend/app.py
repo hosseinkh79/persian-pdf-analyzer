@@ -505,7 +505,17 @@ with tab1:
             if keywords:
                 st.markdown("#### 🏷️ Keywords")
                 keyword_html = " ".join([
-                    f'<span style="background: #e0e0e0; padding: 0.25rem 0.75rem; border-radius: 15px; margin: 0.25rem; display: inline-block; font-size: 0.85rem;">{kw}</span>'
+                    f'<span style="'
+                    f'background-color: #eef2ff; '
+                    f'color: #3730a3; '
+                    f'border: 1px solid #c7d2fe; '
+                    f'padding: 0.35rem 0.85rem; '
+                    f'border-radius: 20px; '
+                    f'margin: 0.25rem; '
+                    f'display: inline-block; '
+                    f'font-size: 0.85rem; '
+                    f'font-weight: 500;'
+                    f'">{kw}</span>'
                     for kw in keywords[:10]
                 ])
                 st.markdown(keyword_html, unsafe_allow_html=True)
