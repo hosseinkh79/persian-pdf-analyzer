@@ -1,8 +1,5 @@
 # 📄 PDF Analyzer Pro
 
-Markdown
-# 📄 AI Document Intelligence Pipeline
-
 An end-to-end, containerized microservice architecture designed to ingest PDF documents, extract text streams, enforce structured JSON analysis via LLM APIs, and store persistent records in PostgreSQL. Built with **FastAPI**, **Streamlit**, and **Docker Compose**.
 
 ---
@@ -99,8 +96,8 @@ docker-compose up --build
 
 Open your browser and go to:
 - Streamlit UI: http://localhost:8501
-- FastAPI Docs: http://localhost:8000/docs
-- API Health Check: http://localhost:8000/health
+- FastAPI Docs: http://localhost:8003/docs
+- API Health Check: http://localhost:8003/health
 
 ---
 
@@ -131,8 +128,8 @@ curl -X POST http://localhost:8000/documents/{document-id}/analyze
 | POSTGRES_USER | PostgreSQL username | postgres |
 | POSTGRES_PASSWORD | PostgreSQL password | postgres |
 | POSTGRES_DB | Database name | pdf_analyzer |
-| OPEN_ROUTER_API_KEY | OpenRouter API key | (required) |
-| OPENROUTER_MODEL | Default LLM model | nvidia/nemotron-3.5-lightning:free |
+| LLM_API_KEY | OpenRouter API key | (required) |
+| LLM_MODEL_NAME | Default LLM model | openai/gpt-4o-mini |
 
 ### Supported Models
 
