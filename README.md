@@ -79,7 +79,7 @@ cp .env.example .env
 Open the `.env` file and add your OpenRouter API key:
 
 ```bash
-OPEN_ROUTER_API_KEY=your-api-key-here
+LLM_API_KEY=your-api-key-here
 ```
 
 **Step 3: Start the application**
