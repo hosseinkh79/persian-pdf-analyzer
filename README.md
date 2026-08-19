@@ -1,6 +1,32 @@
 # 📄 PDF Analyzer Pro
 
-AI-Powered PDF Document Analysis - Extract structured information from PDFs using state-of-the-art language models.
+Markdown
+# 📄 AI Document Intelligence Pipeline
+
+An end-to-end, containerized microservice architecture designed to ingest PDF documents, extract text streams, enforce structured JSON analysis via LLM APIs, and store persistent records in PostgreSQL. Built with **FastAPI**, **Streamlit**, and **Docker Compose**.
+
+---
+
+## 🏗️ Architecture & System Topology
+
+The application follows a decoupled multi-container design, isolating the presentation layer, the API processing orchestration, and data persistence behind a private Docker virtual network.
+
+```text
+[ Browser / User ]
+       │
+       ▼ (Port 8501)
+┌──────────────┐      HTTP / REST API      ┌──────────────┐      LLM API Requests      ┌──────────────┐
+│  Streamlit   │ ────────────────────────► │   FastAPI    │ ─────────────────────────► │  LLM Provider│
+│ (Frontend UI)│ ◄──────────────────────── │  (Backend)   │ ◄───────────────────────── │ (OpenAI/Anth)│
+└──────────────┘                           └──────┬───────┘                            └──────────────┘
+                                                  │
+                                                  │ SQL Queries
+                                                  ▼ (Port 5432)
+                                           ┌──────────────┐
+                                           │  PostgreSQL  │ ──► [ Docker Volume ]
+                                           │  (Database)  │    (Persistent Data)
+                                           └──────────────┘
+```   
 
 ---
 
@@ -20,7 +46,7 @@ AI-Powered PDF Document Analysis - Extract structured information from PDFs usin
 The application consists of three main components:
 
 1. **Streamlit Frontend** - User interface (port 8501)
-2. **FastAPI Backend** - API server (port 8000)
+2. **FastAPI Backend** - API server (port 8003)
 3. **PostgreSQL Database** - Data storage (port 5432)
 
 The backend communicates with OpenRouter API for AI-powered PDF analysis.
@@ -41,23 +67,32 @@ Before you begin, make sure you have:
 
 **Step 1: Clone the repository**
 
-Open your terminal and run:
+```bash
 git clone https://github.com/hosseinkh79/persian-pdf-analyzer.git
 cd persian-pdf-analyzer
-
+```
 
 **Step 2: Set up environment variables**
+
 Copy the example environment file:
+
+```bash
 cp .env.example .env
+```
 
-Open the .env file and add your OpenRouter API key:
+Open the `.env` file and add your OpenRouter API key:
+
+```bash
 OPEN_ROUTER_API_KEY=your-api-key-here
-
+```
 
 **Step 3: Start the application**
 
 Run Docker Compose to build and start all services:
-docker-compose up --build 
+
+```bash
+docker-compose up --build
+```
 
 
 **Step 4: Access the application**
@@ -104,21 +139,22 @@ curl -X POST http://localhost:8000/documents/{document-id}/analyze
 You can use any model available on OpenRouter:
 
 **Free Models:**
+- openai/gpt-4o-mini
 - nvidia/nemotron-3.5-lightning:free
-- google/gemini-2.0-flash-exp:free
-- meta-llama/llama-3.2-1b-instruct:free
+
 
 **Paid Models:**
 - openai/gpt-4
 - anthropic/claude-3-sonnet
 - meta-llama/llama-3-70b-instruct
 
-To change the model, update OPENROUTER_MODEL in your .env file.
+To change the model, update LLM_MODEL_NAME in your .env file.
 
 ---
 
 ## 📁 Project Structure
 
+```text
 Here's how the project is organized:
 persian-pdf-analyzer/
 │
@@ -144,8 +180,8 @@ persian-pdf-analyzer/
 │
 ├── docker-compose.yml # Docker orchestration
 ├── .env.example # Environment template
-└── README.md # This file
-
+└── README.md 
+```
 
 ---
 
