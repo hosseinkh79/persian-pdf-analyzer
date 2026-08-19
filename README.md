@@ -57,7 +57,6 @@ The backend communicates with OpenRouter API for AI-powered PDF analysis.
 Before you begin, make sure you have:
 
 - Docker installed (20.10 or higher)
-- Docker Compose installed (2.0 or higher)
 - An OpenRouter API key (get one at https://openrouter.ai/keys)
 
 ### Installation Steps
